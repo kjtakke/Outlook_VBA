@@ -1,3 +1,24 @@
+Sub DayView()
+    Load_ERP_Calendars
+    Dim objView As CalendarView
+    Set objView = Application.ActiveExplorer.CurrentView
+    On Error Resume Next
+    With objView
+        .CalendarViewMode = olCalendarViewDay
+        .Save
+    End With
+    On Error GoTo 0
+End Sub
+
+Sub ThreeDayView()
+    Load_ERP_Calendars
+    Dim objView As CalendarView
+    Set objView = Application.ActiveExplorer.CurrentView
+    On Error Resume Next
+    With objView
+        .CalendarViewMode = olCalendarViewMultiDay
+        .Save
+    End With
     On Error GoTo 0
 End Sub
 

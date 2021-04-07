@@ -59,7 +59,6 @@ Public Sub Save_Attachment()
         MkDir "C:\Users\" & Environ("UserName") & "\Desktop\Attachments"
     On Error GoTo 0
     For Each omail In objView.Selection
-        If omail.Attachments.Count > 0 Then Debug.Print (omail.Attachments.Count)
         For Each olAttachment In omail.Attachments
             olAttachment.SaveAsFile "C:\Users\" & Environ("UserName") & "\Desktop\Attachments\" & olAttachment.fileName
         Next

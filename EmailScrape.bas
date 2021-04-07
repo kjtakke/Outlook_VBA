@@ -52,6 +52,7 @@ Public Sub Save_Attachment()
     Dim olAttachment As Outlook.Attachment
     Dim i As Integer
     
+    On Error goto nxt:  'Can have errors due to limits cash storge leading limited data to be pulled as one time
     Set objView = Application.ActiveExplorer
 
     i = 1
@@ -63,13 +64,15 @@ Public Sub Save_Attachment()
             olAttachment.SaveAsFile "C:\Users\" & Environ("UserName") & "\Desktop\Attachments\" & olAttachment.fileName
         Next
     Next omail
+    Exit Sub                        
+nxt:
+    msgbox("Limited cash storge. Please select a smaller group of emails.")
+                         
 End Sub
 
 
-
-
-
-
+'########Not Visible in Outlook#############
+                        
 Private Sub Mail_Scrape()
     Call get_Selected_mail_items
     Call CleanText
@@ -102,9 +105,7 @@ End Function
 Private Sub WriteFile()
     Dim TextFile As Integer
     Dim FilePath As String
-    
-    
-    
+
     FilePath = "C:\Users\" & Environ("UserName") & "\Desktop\" & fileName
     TextFile = FreeFile
     Open FilePath For Output As TextFile
@@ -141,7 +142,9 @@ Private Sub Array_To_JSON()
         Next j
         Array_To_JSON = Array_To_JSON & "}," & vbNewLine
     Next i
+        
     exportString = Array_To_JSON
+        
 End Sub
 
 Private Sub Array_To_XML()
@@ -195,7 +198,9 @@ Private Sub get_Selected_mail_items()
     MailMetadata(0, 18) = "Body"
     
     i = 1
-    
+
+    On Error Resume next 'Can have errors due to limits cash storge leading limited data to be pulled as one time
+
     For Each omail In objView.Selection
         MailMetadata(i, 0) = omail.To
         MailMetadata(i, 1) = omail.CC
@@ -218,7 +223,7 @@ Private Sub get_Selected_mail_items()
         MailMetadata(i, 18) = omail.Body
         i = i + 1
     Next omail
-    
+    On Error Goto 0
     Selected_mail_items = MailMetadata
     
 End Sub

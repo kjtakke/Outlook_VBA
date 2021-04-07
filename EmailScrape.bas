@@ -3,7 +3,7 @@ Private Selected_mail_items As Variant
 Private ext As String
 Private exportString As String
 
-Public Sub to_CSV()
+Public Sub Mail_CSV()
     Dim xlApp As Object
     Dim xlWB As Object
     Dim xlSheet As Object

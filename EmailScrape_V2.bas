@@ -1,0 +1,232 @@
+Const ArrayDim = 18
+Private Selected_mail_items As Variant
+Private ext As String
+Private exportString As String
+
+Public Sub Mail_CSV()
+    Dim xlApp As Object
+    Dim xlWB As Object
+    Dim xlSheet As Object
+    
+    ext = ".csv"
+    Call Mail_Scrape
+    
+    'On Error Resume Next
+    Set xlApp = CreateObject("Excel.Application")
+    
+    Set xlWB = xlApp.Workbooks.Add
+    Set xlSheet = xlWB.Sheets("Sheet1")
+    xlSheet.Range("A1:S" & UBound(Selected_mail_items) + 1) = Selected_mail_items
+    
+    xlWB.SaveAs fileName:="C:\Users\" & Environ("UserName") & "\Desktop\" & fileName(), FileFormat:=xlCSV, CreateBackup:=False
+    xlWB.Application.DisplayAlerts = False
+    xlWB.Close
+
+    Set olItem = Nothing
+    Set obj = Nothing
+    Set currentExplorer = Nothing
+    Set xlSheet = Nothing
+    Set xlWB = Nothing
+    Set xlApp = Nothing
+    
+End Sub
+
+Public Sub Mail_JSON()
+    ext = ".json"
+    Call Mail_Scrape
+    Call Array_To_JSON
+    Call WriteFile
+End Sub
+
+Public Sub Mail_XML()
+    ext = ".xml"
+    Call Mail_Scrape
+    Call Array_To_XML
+    WriteFile
+End Sub
+
+Public Sub Save_Attachment()
+    Dim olMail As Outlook.MailItem
+    Dim objView As Explorer
+    Dim MailMetadata As Variant
+    Dim olAttachment As Outlook.Attachment
+    Dim i As Integer
+    
+    On Error GoTo nxt:  'Can have errors due to limits cash storge leading limited data to be pulled as one time
+    Set objView = Application.ActiveExplorer
+
+    i = 1
+    On Error Resume Next
+        MkDir "C:\Users\" & Environ("UserName") & "\Desktop\Attachments"
+    On Error GoTo 0
+    For Each omail In objView.Selection
+        For Each olAttachment In omail.Attachments
+            olAttachment.SaveAsFile "C:\Users\" & Environ("UserName") & "\Desktop\Attachments\" & olAttachment.fileName
+        Next
+    Next omail
+    Exit Sub
+nxt:
+    MsgBox ("Limited cash storge. Please select a smaller group of emails.")
+                         
+End Sub
+
+
+'########Not Visible in Outlook#############
+                        
+Private Sub Mail_Scrape()
+    Call get_Selected_mail_items
+    Call CleanText
+End Sub
+
+Private Function fileName() As String
+    Dim sFolder As String
+    Dim FileDate As String
+    Dim UserName As String
+    Dim tempArray As Variant
+    
+    FileDate = Format(Now(), "yyyymmdd")
+    UserName = Environ("UserName")
+    tempArray = Split(UserName, ".")
+    UserName = ""
+    
+    
+    For i = 0 To UBound(tempArray)
+        If i = UBound(tempArray) Then
+            UserName = UserName & tempArray(i)
+        Else
+            UserName = UserName & tempArray(i) & "_"
+        End If
+    Next i
+    
+    fileName = FileDate & "-" & UserName & "-" & "Mail_Scrape" & ext
+    
+End Function
+
+Private Sub WriteFile()
+    Dim TextFile As Integer
+    Dim FilePath As String
+
+    FilePath = "C:\Users\" & Environ("UserName") & "\Desktop\" & fileName
+    TextFile = FreeFile
+    Open FilePath For Output As TextFile
+    Print #TextFile, exportString
+    Close TextFile
+
+End Sub
+
+
+Private Sub CleanText()
+    Dim i As Single, j As Single
+    Dim myString As String
+    
+    myString = ""
+    
+    For i = 1 To UBound(Selected_mail_items)
+        For j = 0 To ArrayDim
+            Selected_mail_items(i, j) = Replace(Selected_mail_items(i, j), """", "'")
+        Next j
+    Next i
+
+End Sub
+
+Private Sub Array_To_JSON()
+    Dim i As Single, j As Single
+    Dim Array_To_JSON As String
+    
+    Array_To_JSON = ""
+    
+    For i = 1 To UBound(Selected_mail_items)
+        Array_To_JSON = Array_To_JSON & "{" & vbNewLine
+        For j = 0 To ArrayDim
+            Array_To_JSON = Array_To_JSON & vbTab & """" & Selected_mail_items(0, j) & """: """ & Selected_mail_items(i, j) & """," & vbNewLine
+        Next j
+        Array_To_JSON = Array_To_JSON & "}," & vbNewLine
+    Next i
+        
+    exportString = Array_To_JSON
+        
+End Sub
+
+Private Sub Array_To_XML()
+    Dim i As Single, j As Single
+    Dim Array_To_XML As String
+    Array_To_XML = ""
+    
+    For i = 1 To UBound(Selected_mail_items)
+        Array_To_XML = Array_To_XML & "<Email Item>" & vbNewLine
+        For j = 0 To ArrayDim
+            Array_To_XML = Array_To_XML & vbTab & "<" & Selected_mail_items(0, j) & ">" & """" & Selected_mail_items(i, j) & """" & "</" & Selected_mail_items(0, j) & ">" & vbNewLine
+        Next j
+        Array_To_XML = Array_To_XML & "</Email Item>" & vbNewLine
+    Next i
+    exportString = Array_To_XML
+End Sub
+Private Sub get_Selected_mail_items()
+    Dim olMail As Outlook.MailItem
+    Dim objView As Explorer
+    Dim MailMetadata As Variant
+    Dim i As Integer
+    
+    Set objView = Application.ActiveExplorer
+
+    i = 1
+    
+    For Each omail In objView.Selection
+        i = i + 1
+    Next omail
+    
+    ReDim MailMetadata(0 To i - 1, 0 To ArrayDim)
+    
+    MailMetadata(0, 0) = "To"
+    MailMetadata(0, 1) = "CC"
+    MailMetadata(0, 2) = "Reply_Recipient_Names"
+    MailMetadata(0, 3) = "Sender_Email_Address"
+    MailMetadata(0, 4) = "Sender_Name"
+    MailMetadata(0, 5) = "Sent_On_Behalf_Of_Name"
+    MailMetadata(0, 6) = "Sender_Email_Type"
+    MailMetadata(0, 7) = "Sent"
+    MailMetadata(0, 8) = "Size"
+    MailMetadata(0, 9) = "Unread"
+    MailMetadata(0, 10) = "Creation_Time"
+    MailMetadata(0, 11) = "Last_Modification_Time"
+    MailMetadata(0, 12) = "Sent_On"
+    MailMetadata(0, 13) = "Received_Time"
+    MailMetadata(0, 14) = "Importance"
+    MailMetadata(0, 15) = "Received_By_Name"
+    MailMetadata(0, 16) = "Received_On_Behalf_Of_Name"
+    MailMetadata(0, 17) = "Subject"
+    MailMetadata(0, 18) = "Body"
+    
+    i = 1
+
+    'On Error Resume Next 'Can have errors due to limits cash storge leading limited data to be pulled as one time
+    On Error GoTo nxt:
+    For Each olMail In objView.Selection
+        MailMetadata(i, 0) = olMail.To
+        MailMetadata(i, 1) = olMail.CC
+        MailMetadata(i, 2) = olMail.ReplyRecipientNames
+        MailMetadata(i, 3) = olMail.SenderEmailAddress
+        MailMetadata(i, 4) = olMail.SenderName
+        MailMetadata(i, 5) = olMail.SentOnBehalfOfName
+        MailMetadata(i, 6) = olMail.SenderEmailType
+        MailMetadata(i, 7) = olMail.Sent
+        MailMetadata(i, 8) = olMail.Size
+        MailMetadata(i, 9) = olMail.UnRead
+        MailMetadata(i, 10) = olMail.CreationTime
+        MailMetadata(i, 11) = olMail.LastModificationTime
+        MailMetadata(i, 12) = olMail.SentOn
+        MailMetadata(i, 13) = olMail.ReceivedTime
+        MailMetadata(i, 14) = olMail.Importance
+        MailMetadata(i, 15) = olMail.ReceivedByName
+        MailMetadata(i, 16) = olMail.ReceivedOnBehalfOfName
+        MailMetadata(i, 17) = olMail.Subject
+        MailMetadata(i, 18) = olMail.Body
+        i = i + 1
+nxt:
+    On Error GoTo en:
+    Next olMail
+en:
+    On Error GoTo 0
+    Selected_mail_items = MailMetadata
+    
+End Sub

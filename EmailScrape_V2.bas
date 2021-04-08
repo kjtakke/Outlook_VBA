@@ -1,3 +1,5 @@
+'Updated 08 Apr 2021 : 1453
+
 Const ArrayDim = 18
 Private Selected_mail_items As Variant
 Private ext As String
@@ -8,20 +10,39 @@ Public Sub Mail_CSV()
     Dim xlWB As Object
     Dim xlSheet As Object
     
+    'Assigns the ext string variable with ".csv"
     ext = ".csv"
+    
+    'Scrapes and retrievs all mail items in to a Module level 2D Array
     Call Mail_Scrape
     
-    'On Error Resume Next
+    'Common Errors are:
+    '   Excel not installed
+    '   System 32 dll file missing or curupt
+    On Error Resume Next
+    
+    'Create an empty instence of Excel in memory only
     Set xlApp = CreateObject("Excel.Application")
     
+    'Add an Excel Workbook to the Empty Excel Instence
     Set xlWB = xlApp.Workbooks.Add
+    
+    'Assign Sheet1 to xlSheet
     Set xlSheet = xlWB.Sheets("Sheet1")
+    
+    'Deturmine the array size | convert it in to a Range String | Paste the array to Sheet1
     xlSheet.Range("A1:S" & UBound(Selected_mail_items) + 1) = Selected_mail_items
     
+    'Save the Excel Workbook to the users Desktop as a .csv
     xlWB.SaveAs fileName:="C:\Users\" & Environ("UserName") & "\Desktop\" & fileName(), FileFormat:=xlCSV, CreateBackup:=False
+    
+    'Stop any save/save as notifications
     xlWB.Application.DisplayAlerts = False
+    
+    'Close the Excel Workbook
     xlWB.Close
 
+    'Clear all the Variables from memory
     Set olItem = Nothing
     Set obj = Nothing
     Set currentExplorer = Nothing
@@ -32,16 +53,30 @@ Public Sub Mail_CSV()
 End Sub
 
 Public Sub Mail_JSON()
+    'Assigns the ext string variable with ".json"
     ext = ".json"
+    
+    'Scrapes and retrievs all mail items in to a Module level 2D Array
     Call Mail_Scrape
+    
+    'Convet the array to json format as a single string
     Call Array_To_JSON
+    
+    'Writ the string to a text/json file on the users desktop
     Call WriteFile
 End Sub
 
 Public Sub Mail_XML()
+    'Assigns the ext string variable with ".xml"
     ext = ".xml"
+    
+    'Scrapes and retrievs all mail items in to a Module level 2D Array
     Call Mail_Scrape
+    
+    'Convet the array to xml format as a single string
     Call Array_To_XML
+    
+    'Writ the string to a text/xml file on the users desktop
     WriteFile
 End Sub
 
@@ -50,31 +85,130 @@ Public Sub Save_Attachment()
     Dim objView As Explorer
     Dim MailMetadata As Variant
     Dim olAttachment As Outlook.Attachment
+    
+    'Set the objView Objext to be the users active Outlook window
+    Set objView = Application.ActiveExplorer
+    
+    'Common Errors include:
+    '   Lack of memory due to a 32 bit system
+    '   File not type recognised/corupted
+    '   File to large to export due to a 32 bit system
+    On Error Resume Next
+    
+    'Make a new folder on the users Desktop | Will skip this is it allready exists through the above error handeling
+    MkDir "C:\Users\" & Environ("UserName") & "\Desktop\Attachments"
+    
+    'Loop through each selected mail items
+    For Each omail In objView.Selection
+    
+        'Loop through each attachment in the selected mail item
+        For Each olAttachment In omail.Attachments
+        
+            'Export the mail item to the users desktop
+            'this uses the File_Exists function, where is identifies if teh file exists and changes/incruments the file name
+            olAttachment.SaveAsFile File_Exists("C:\Users\" & Environ("UserName") & "\Desktop\Attachments\" & olAttachment.fileName)
+            
+        Next olAttachment
+    Next omail
+          
+End Sub
+
+Private Function File_Exists(fielPath As String) As String
+    Dim strFileExists As String
+    Dim fileExists As Boolean
+    Dim temp_FileName As String, temp_FileName_Placeholder As String
+    Dim temp_FileArray As Variant
+    Dim temp_FileExt As String
+    Dim temp_path As String
     Dim i As Integer
     
-    On Error GoTo nxt:  'Can have errors due to limits cash storge leading limited data to be pulled as one time
-    Set objView = Application.ActiveExplorer
+    'Look for the item (filePath)
+    strFileExists = Dir(fielPath)
+    
+    'Does the file exist
+    If strFileExists <> "" Then
+    
+        'Breakuup the filepath in to three components
+        '   Path | File Name | File Extention
+        
+        'Split the filepath into an array by "."
+        temp_FileArray = Split(strFileExists, ".")
+        
+        'Extract the File Extention by Concatenating "." * the last item in the temp_FileArray()
+        temp_FileExt = "." & temp_FileArray(UBound(temp_FileArray))
+        
 
-    i = 1
-    On Error Resume Next
-        MkDir "C:\Users\" & Environ("UserName") & "\Desktop\Attachments"
-    On Error GoTo 0
-    For Each omail In objView.Selection
-        For Each olAttachment In omail.Attachments
-            olAttachment.SaveAsFile "C:\Users\" & Environ("UserName") & "\Desktop\Attachments\" & olAttachment.fileName
-        Next
-    Next omail
-    Exit Sub
-nxt:
-    MsgBox ("Limited cash storge. Please select a smaller group of emails.")
-                         
-End Sub
+        'Extract the File Name by through last item in the temp_FileArray()
+        temp_FileName = temp_FileArray(0)
+        
+        'Resplit the filePath this time by "\"
+        temp_FileArray = Split(fielPath, "\")
+        
+        'Initilise the temp_path string variable
+        temp_path = ""
+        
+        'Loop through temp_FileArray() stopping fhort of the last array item
+        For i = 0 To UBound(temp_FileArray) - 1
+            
+            'Concatenating all teh looped temp_FileArray() items
+            temp_path = temp_path & temp_FileArray(i) & "\"
+            
+        Next i
+        
+        'Initilising the fileExists Boolean Variable which operates as a gate/switch for the below Do While Loop
+        fileExists = True
+        
+        'Initilise the temp_FileName_Placeholder to be reset and ammended each loop
+        temp_FileName_Placeholder = temp_FileName
+        
+        'Initilise the counter (i) to be appended to teh file name
+        i = 1
+        
+        'While fileExists = True rename the variable by concatenating "(" & i & ")"
+        Do While fileExists = True
+        
+            'Increment the temp_FileName_Placeholder by appending temp_FileName & "(" & i & ")"
+            temp_FileName_Placeholder = temp_FileName & "(" & i & ")"
+            
+            
+            'Check if teh appended file name exists
+            If Dir(temp_path & temp_FileName_Placeholder & temp_FileExt) <> "" Then
+            
+            'Incrument the counter (i)
+            i = i + 1
+            
+            Else
+            
+            'Return the new appended fileName
+            fielPath = temp_path & temp_FileName_Placeholder & temp_FileExt
+            
+            'Break teh loop
+            fileExists = False
+            
+            End If
+            
+        Loop
+        
+    Else
+        
+        'File does not exist and return fielPath
+        fielPath = fielPath
+        
+    End If
+    
+    'Return teh new or same fiel name
+    File_Exists = fielPath
+End Function
+
 
 
 '########Not Visible in Outlook#############
                         
 Private Sub Mail_Scrape()
+    'Scrapes and retrievs all mail items in to a Module level 2D Array
     Call get_Selected_mail_items
+    
+    'Replace all " in the body with ' for file formatting standards
     Call CleanText
 End Sub
 
@@ -84,20 +218,38 @@ Private Function fileName() As String
     Dim UserName As String
     Dim tempArray As Variant
     
-    FileDate = Format(Now(), "yyyymmdd")
+    'Convert the current date to text YYMMDD
+    FileDate = Format(Now(), "yymmdd")
+    
+    'Convert the users profile name to text
     UserName = Environ("UserName")
+    
+    'Split the username by "."
     tempArray = Split(UserName, ".")
+    
+    'Initiate teh UserName String variable to be reformed without a "."
     UserName = ""
     
-    
+    'Loop through the User name Array | tempArray()
     For i = 0 To UBound(tempArray)
+    
+        'If Last item in array then
         If i = UBound(tempArray) Then
+        
+            'Concatenate UserName with the last array item
             UserName = UserName & tempArray(i)
+            
+        'Not the last item in the array
         Else
+        
+            'Concatenate UserName with the current array item and "_"
             UserName = UserName & tempArray(i) & "_"
+            
         End If
+        
     Next i
     
+    'Retutn fileName by concatenating FileDate-UserName-Mail_Scrape.ext
     fileName = FileDate & "-" & UserName & "-" & "Mail_Scrape" & ext
     
 End Function
@@ -106,7 +258,12 @@ Private Sub WriteFile()
     Dim TextFile As Integer
     Dim FilePath As String
 
+    'Set the File path to the users desktop and append the filename (with extention)
     FilePath = "C:\Users\" & Environ("UserName") & "\Desktop\" & fileName
+    
+    'Create the file (Writes over teh existing file)
+    'To write to a new file run:
+    '   FilePath = File_Exists(FilePath)
     TextFile = FreeFile
     Open FilePath For Output As TextFile
     Print #TextFile, exportString
@@ -119,12 +276,20 @@ Private Sub CleanText()
     Dim i As Single, j As Single
     Dim myString As String
     
+    'Initilise myString as the cleaned string
     myString = ""
     
+    'Loop through all rows (except the header) in the 2D Array | Selected_mail_items()
     For i = 1 To UBound(Selected_mail_items)
+        
+        'Loop through each column/dimention in the 2D Array | Selected_mail_items()
         For j = 0 To ArrayDim
+        
+            'Replace " with '
             Selected_mail_items(i, j) = Replace(Selected_mail_items(i, j), """", "'")
+            
         Next j
+        
     Next i
 
 End Sub
@@ -133,16 +298,28 @@ Private Sub Array_To_JSON()
     Dim i As Single, j As Single
     Dim Array_To_JSON As String
     
+    'Initilise Array_To_JSON as the final single string in json format
     Array_To_JSON = ""
     
+    'Loop through all rows in the 2D Array | Selected_mail_items()
     For i = 1 To UBound(Selected_mail_items)
+        
+        'Open a json object "{"
         Array_To_JSON = Array_To_JSON & "{" & vbNewLine
+        
+        'Loop through each column/dimention in the 2D Array | Selected_mail_items()
         For j = 0 To ArrayDim
+        
+            'Append | TAB | " | current array item header | " | : | " | current array item | " | , | newline(\n equivelant)
             Array_To_JSON = Array_To_JSON & vbTab & """" & Selected_mail_items(0, j) & """: """ & Selected_mail_items(i, j) & """," & vbNewLine
         Next j
-        Array_To_JSON = Array_To_JSON & "}," & vbNewLine
-    Next i
         
+        'Close a json object "}"
+        Array_To_JSON = Array_To_JSON & "}," & vbNewLine
+        
+    Next i
+    
+    'Make exportString (Module level string Variable) = Array_To_JSON ready for writng to a file
     exportString = Array_To_JSON
         
 End Sub
@@ -150,16 +327,30 @@ End Sub
 Private Sub Array_To_XML()
     Dim i As Single, j As Single
     Dim Array_To_XML As String
+    
+    'Initilise Array_To_XML as the final single string in xml format
     Array_To_XML = ""
     
+    'Loop through all rows in the 2D Array | Selected_mail_items()
     For i = 1 To UBound(Selected_mail_items)
+    
+        'Opep the xml document | <Email Item>
         Array_To_XML = Array_To_XML & "<Email Item>" & vbNewLine
         For j = 0 To ArrayDim
+        
+            'Create and write an xml object <header> | current item | </header>
             Array_To_XML = Array_To_XML & vbTab & "<" & Selected_mail_items(0, j) & ">" & """" & Selected_mail_items(i, j) & """" & "</" & Selected_mail_items(0, j) & ">" & vbNewLine
         Next j
+        
+        'Close the xml document | </Email Item>
         Array_To_XML = Array_To_XML & "</Email Item>" & vbNewLine
+        
+        
     Next i
+    
+    'Make exportString (Module level string Variable) = Array_To_XML ready for writng to a file
     exportString = Array_To_XML
+    
 End Sub
 Private Sub get_Selected_mail_items()
     Dim olMail As Outlook.MailItem
@@ -167,16 +358,21 @@ Private Sub get_Selected_mail_items()
     Dim MailMetadata As Variant
     Dim i As Integer
     
+    'Set the objView Objext to be the users active Outlook window
     Set objView = Application.ActiveExplorer
-
+    
+    'Initilis the counter i as 1
     i = 1
     
+    'Loop through each selected mail item to get a count to initilise the below 2D array | MailMetadata()
     For Each omail In objView.Selection
         i = i + 1
     Next omail
     
+    'initilise the 2D Array | MailMetadata()
     ReDim MailMetadata(0 To i - 1, 0 To ArrayDim)
     
+    'Add headders to the 2D Array | MailMetadata(0,?)
     MailMetadata(0, 0) = "To"
     MailMetadata(0, 1) = "CC"
     MailMetadata(0, 2) = "Reply_Recipient_Names"
@@ -197,10 +393,13 @@ Private Sub get_Selected_mail_items()
     MailMetadata(0, 17) = "Subject"
     MailMetadata(0, 18) = "Body"
     
+    'Reinitilise that counter (i) to skip the header file
     i = 1
 
-    'On Error Resume Next 'Can have errors due to limits cash storge leading limited data to be pulled as one time
+    'Any incompatable mail items are skipped
     On Error GoTo nxt:
+    
+    'Loop through each selected mail item and add teh metadat to the 2D Array | MailMetadata(?>0,?)
     For Each olMail In objView.Selection
         MailMetadata(i, 0) = olMail.To
         MailMetadata(i, 1) = olMail.CC
@@ -221,12 +420,22 @@ Private Sub get_Selected_mail_items()
         MailMetadata(i, 16) = olMail.ReceivedOnBehalfOfName
         MailMetadata(i, 17) = olMail.Subject
         MailMetadata(i, 18) = olMail.Body
+        
         i = i + 1
+        
+'Skipped Mail Item
 nxt:
+    'Reinitilise error to exit the subroutine is errors persist
     On Error GoTo en:
     Next olMail
+    
+'Persistant erros | Exit Sub
 en:
+
+    'Reinitilise error handeler to default
     On Error GoTo 0
+    
+    'Add MailMetadata array to Selected_mail_items (Module Level Array/Variant Variable)
     Selected_mail_items = MailMetadata
     
 End Sub

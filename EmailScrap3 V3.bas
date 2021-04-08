@@ -1,13 +1,12 @@
-'Updated 08 Apr 2021 : 1453
+'Updated 08 Apr 2021 : 2126
 
 Const ArrayDim = 18
-Const FileLocation As String = "Desktop"
+Const FileLocation As String = "Documents"
 Private Selected_mail_items As Variant
 Private ext As String
 Private exportString As String
 
-
-Public Sub json_att()
+Public Sub JSON()
     Dim i As Integer
     Dim TextFile As Integer
     Dim FilePath As String
@@ -15,21 +14,27 @@ Public Sub json_att()
     Dim olMail As Outlook.MailItem
     Dim objView As Explorer
     Dim olAttachment As Outlook.Attachment
+    Dim FilePathConverter As String
     
     Set objView = Application.ActiveExplorer
-
-    On Error Resume Next
     
-
-    'ReplyRecipientNames, SenderEmailAddress, SenderName, SentOnBehalfOfName, ReceivedOnBehalfOfName
+    On Error Resume Next
+    MkDir "C:\Users\" & Environ("UserName") & "\" & FileLocation & "\Attachments\"
 
     exportString = ""
     For Each olMail In objView.Selection
-    
+        Dim jsonArrays As Collection
+        Set jsonArrays = New Collection
+        
+        'Creating json sub Arrays
+        jsonArrays.Add Item:=jsonArray(olMail.To, ";")
+        jsonArrays.Add Item:=jsonArray(olMail.CC, ";")
+        
+        'Creating the main json array
         exportString = "{" & vbNewLine & vbTab & _
                             """people"" : {" & vbNewLine & vbTab & vbTab & _
-                                """to"" : """ & olMail.To & """," & vbNewLine & vbTab & vbTab & _
-                                """cc"" : """ & olMail.CC & """" & vbNewLine & vbTab & _
+                                """to"" : """ & jsonArrays(1) & """," & vbNewLine & vbTab & vbTab & _
+                                """cc"" : """ & jsonArrays(2) & """" & vbNewLine & vbTab & _
                             "}," & vbNewLine & vbTab
                             
         exportString = exportString & _
@@ -65,23 +70,44 @@ Public Sub json_att()
                                 "}" & vbNewLine & _
                         "}"
                         
-        FileName = Format(olMail.SentOn, "yymmdd") & "-" & Format(olMail.ReceivedTime, "hhmmss") & "-" & olMail.SenderName & "-" & Left(olMail.Subject, 15)
-        FileName = Replace(FileName, "\", "-")
-        FileName = Replace(FileName, "/", "-")
-        FileName = Replace(FileName, ".", "-")
+        'Create File name
+        FileName = Format(olMail.SentOn, "yymmdd") & "-" & Format(olMail.ReceivedTime, "hhmmss") & "-" & olMail.SenderName & "-" & Left(olMail.Subject, 30)
         
-        Debug.Print (exportString)
-        FilePath = "C:\Users\" & Environ("UserName") & "\Desktop\" & FileName & ".txt" 'change to json
+        'Remove reserved characters fron teh file name
+        FileName = Replace(FileName, "\", " ")
+        FileName = Replace(FileName, "/", " ")
+        FileName = Replace(FileName, ".", " ")
+        FileName = Replace(FileName, "|", " ")
+        FileName = Replace(FileName, "*", " ")
+        FileName = Replace(FileName, "*", " ")
+        FileName = Replace(FileName, "?", " ")
+        FileName = Replace(FileName, ":", " ")
+        FileName = Replace(FileName, "<", " ")
+        FileName = Replace(FileName, ">", " ")
+        
+        'Set the file path
+        FilePath = "C:\Users\" & Environ("UserName") & "\" & FileLocation & "\Attachments\" & FileName & ".json"
+        
+        'Insure the file path is unique
         FilePath = File_Exists(FilePath)
+        
+        'Write text file (.json)
         TextFile = FreeFile
         Open FilePath For Output As TextFile
         Print #TextFile, exportString
         Close TextFile
-
+        
+        'Extract all Attachments and place into their own folder
+        'the folder name matched the wmail item json name
         On Error Resume Next
-        For Each olAttachment In omail.Attachments
-            MkDir "C:\Users\" & Environ("UserName") & "\" & FileLocation & "\" & FileName
-            olAttachment.SaveAsFile File_Exists("C:\Users\" & Environ("UserName") & "\" & FileLocation & "\" & FileName & olAttachment.FileName)
+        For Each olAttachment In olMail.Attachments
+        If olAttachment.FileName <> "" Then
+            FilePathConverter = "C:\Users\" & Environ("UserName") & "\" & FileLocation & "\Attachments\" & FileName & "\"
+            MkDir "C:\Users\" & Environ("UserName") & "\" & FileLocation & "\Attachments\" & FileName & "\"
+        
+            FilePathConverter = File_Exists("C:\Users\" & Environ("UserName") & "\" & FileLocation & "\Attachments\" & FileName & "\" & olAttachment.FileName)
+            olAttachment.SaveAsFile FilePathConverter
+        End If
         Next olAttachment
    
     Next olMail
@@ -89,7 +115,8 @@ Public Sub json_att()
 End Sub
 
 
-Public Sub Mail_CSV()
+
+Public Sub CSV()
     Dim xlApp As Object
     Dim xlWB As Object
     Dim xlSheet As Object
@@ -136,35 +163,7 @@ Public Sub Mail_CSV()
     
 End Sub
 
-Public Sub Mail_JSON()
-    'Assigns the ext string variable with ".json"
-    ext = ".json"
-    
-    'Scrapes and retrievs all mail items in to a Module level 2D Array
-    Call Mail_Scrape
-    
-    'Convet the array to json format as a single string
-    Call Array_To_JSON
-    
-    'Writ the string to a text/json file on the users desktop
-    Call WriteFile
-End Sub
-
-Public Sub Mail_XML()
-    'Assigns the ext string variable with ".xml"
-    ext = ".xml"
-    
-    'Scrapes and retrievs all mail items in to a Module level 2D Array
-    Call Mail_Scrape
-    
-    'Convet the array to xml format as a single string
-    Call Array_To_XML
-    
-    'Writ the string to a text/xml file on the users desktop
-    WriteFile
-End Sub
-
-Public Sub Save_Attachment()
+Public Sub Attachments()
     Dim olMail As Outlook.MailItem
     Dim objView As Explorer
     Dim MailMetadata As Variant
@@ -196,6 +195,79 @@ Public Sub Save_Attachment()
     Next omail
           
 End Sub
+
+'########Not Visible in Outlook#############
+                        
+Private Sub Mail_Scrape()
+    'Scrapes and retrievs all mail items in to a Module level 2D Array
+    Call get_Selected_mail_items
+    
+    'Replace all " in the body with ' for file formatting standards
+    Call CleanText
+End Sub
+
+Private Function FileName() As String
+    Dim sFolder As String
+    Dim FileDate As String
+    Dim UserName As String
+    Dim tempArray As Variant
+    
+    'Convert the current date to text YYMMDD
+    FileDate = Format(Now(), "yymmdd")
+    
+    'Convert the users profile name to text
+    UserName = Environ("UserName")
+    
+    'Split the username by "."
+    tempArray = Split(UserName, ".")
+    
+    'Initiate teh UserName String variable to be reformed without a "."
+    UserName = ""
+    
+    'Loop through the User name Array | tempArray()
+    For i = 0 To UBound(tempArray)
+    
+        'If Last item in array then
+        If i = UBound(tempArray) Then
+        
+            'Concatenate UserName with the last array item
+            UserName = UserName & tempArray(i)
+            
+        'Not the last item in the array
+        Else
+        
+            'Concatenate UserName with the current array item and "_"
+            UserName = UserName & tempArray(i) & "_"
+            
+        End If
+        
+    Next i
+    
+    'Retutn fileName by concatenating FileDate-UserName-Mail_Scrape.ext
+    FileName = FileDate & "-" & UserName & "-" & "Mail_Scrape" & ext
+    
+End Function
+
+Private Function jsonArray(str As String, del As String) As String
+    Dim tmpArray As Variant
+    Dim tmpString As String
+    
+    'Split up the string
+    tmpArray = Split(str, del)
+    tmpString = "[" & vbNewLine & vbTab & tbTab & vbTab & vbTab
+        
+    
+    For i = 0 To UBound(tmpArray)
+        tmpArray(i) = Trim(tmpArray(i))
+        If i = UBound(tmpArray) Then
+            tmpString = tmpString & "{""email"":""" & tmpArray(i) & """}" & vbNewLine & vbTab & tbTab & vbTab
+        Else
+            tmpString = tmpString & "{""email"":""" & tmpArray(i) & """}," & vbNewLine & vbTab & tbTab & vbTab & vbTab
+        End If
+    Next i
+    tmpString = tmpString & "]"
+    jsonArray = tmpString
+End Function
 
 Private Function File_Exists(fielPath As String) As String
     Dim strFileExists As String
@@ -284,60 +356,6 @@ Private Function File_Exists(fielPath As String) As String
     File_Exists = fielPath
 End Function
 
-
-
-'########Not Visible in Outlook#############
-                        
-Private Sub Mail_Scrape()
-    'Scrapes and retrievs all mail items in to a Module level 2D Array
-    Call get_Selected_mail_items
-    
-    'Replace all " in the body with ' for file formatting standards
-    Call CleanText
-End Sub
-
-Private Function FileName() As String
-    Dim sFolder As String
-    Dim FileDate As String
-    Dim UserName As String
-    Dim tempArray As Variant
-    
-    'Convert the current date to text YYMMDD
-    FileDate = Format(Now(), "yymmdd")
-    
-    'Convert the users profile name to text
-    UserName = Environ("UserName")
-    
-    'Split the username by "."
-    tempArray = Split(UserName, ".")
-    
-    'Initiate teh UserName String variable to be reformed without a "."
-    UserName = ""
-    
-    'Loop through the User name Array | tempArray()
-    For i = 0 To UBound(tempArray)
-    
-        'If Last item in array then
-        If i = UBound(tempArray) Then
-        
-            'Concatenate UserName with the last array item
-            UserName = UserName & tempArray(i)
-            
-        'Not the last item in the array
-        Else
-        
-            'Concatenate UserName with the current array item and "_"
-            UserName = UserName & tempArray(i) & "_"
-            
-        End If
-        
-    Next i
-    
-    'Retutn fileName by concatenating FileDate-UserName-Mail_Scrape.ext
-    FileName = FileDate & "-" & UserName & "-" & "Mail_Scrape" & ext
-    
-End Function
-
 Private Sub WriteFile()
     Dim TextFile As Integer
     Dim FilePath As String
@@ -378,64 +396,6 @@ Private Sub CleanText()
 
 End Sub
 
-Private Sub Array_To_JSON()
-    Dim i As Single, j As Single
-    Dim Array_To_JSON As String
-    
-    'Initilise Array_To_JSON as the final single string in json format
-    Array_To_JSON = ""
-    
-    'Loop through all rows in the 2D Array | Selected_mail_items()
-    For i = 1 To UBound(Selected_mail_items)
-        
-        'Open a json object "{"
-        Array_To_JSON = Array_To_JSON & "{" & vbNewLine
-        
-        'Loop through each column/dimention in the 2D Array | Selected_mail_items()
-        For j = 0 To ArrayDim
-        
-            'Append | TAB | " | current array item header | " | : | " | current array item | " | , | newline(\n equivelant)
-            Array_To_JSON = Array_To_JSON & vbTab & """" & Selected_mail_items(0, j) & """: """ & Selected_mail_items(i, j) & """," & vbNewLine
-        Next j
-        
-        'Close a json object "}"
-        Array_To_JSON = Array_To_JSON & "}," & vbNewLine
-        
-    Next i
-    
-    'Make exportString (Module level string Variable) = Array_To_JSON ready for writng to a file
-    exportString = Array_To_JSON
-        
-End Sub
-
-Private Sub Array_To_XML()
-    Dim i As Single, j As Single
-    Dim Array_To_XML As String
-    
-    'Initilise Array_To_XML as the final single string in xml format
-    Array_To_XML = ""
-    
-    'Loop through all rows in the 2D Array | Selected_mail_items()
-    For i = 1 To UBound(Selected_mail_items)
-    
-        'Opep the xml document | <Email Item>
-        Array_To_XML = Array_To_XML & "<Email Item>" & vbNewLine
-        For j = 0 To ArrayDim
-        
-            'Create and write an xml object <header> | current item | </header>
-            Array_To_XML = Array_To_XML & vbTab & "<" & Selected_mail_items(0, j) & ">" & """" & Selected_mail_items(i, j) & """" & "</" & Selected_mail_items(0, j) & ">" & vbNewLine
-        Next j
-        
-        'Close the xml document | </Email Item>
-        Array_To_XML = Array_To_XML & "</Email Item>" & vbNewLine
-        
-        
-    Next i
-    
-    'Make exportString (Module level string Variable) = Array_To_XML ready for writng to a file
-    exportString = Array_To_XML
-    
-End Sub
 Private Sub get_Selected_mail_items()
     Dim olMail As Outlook.MailItem
     Dim objView As Explorer
@@ -523,3 +483,4 @@ en:
     Selected_mail_items = MailMetadata
     
 End Sub
+

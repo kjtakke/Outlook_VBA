@@ -50,8 +50,8 @@ Public Sub JSON()
         'Creating the main json array
         exportString = "{" & vbNewLine & vbTab & _
                             """people"" : {" & vbNewLine & vbTab & vbTab & _
-                                """to"" : """ & jsonArrays(1) & """," & vbNewLine & vbTab & vbTab & _
-                                """cc"" : """ & jsonArrays(2) & """" & vbNewLine & vbTab & _
+                                """to"" : " & jsonArrays(1) & "," & vbNewLine & vbTab & vbTab & _
+                                """cc"" : " & jsonArrays(2) & vbNewLine & vbTab & _
                             "}," & vbNewLine & vbTab
         exportString = exportString & _
                             """names"" : {" & vbNewLine & vbTab & vbTab & _

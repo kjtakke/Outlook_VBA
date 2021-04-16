@@ -1,6 +1,5 @@
 Sub AllItemsToCSV()
     Dim MailMetadata() As Variant
-    Dim k As Integer
     Dim oDeletedItems As Outlook.Folder
     Dim oFolders As Outlook.Folders
     Dim oFolders2 As Outlook.Folders
@@ -8,51 +7,69 @@ Sub AllItemsToCSV()
     Dim oItem As Outlook.Items
     Dim oItem2 As Outlook.Items
     
-    Dim h As Integer, f As Integer
+    Dim k As Double, z As Integer, i As Integer
+    Dim h As Integer, f As Integer, g As Integer
     
     Set oFolders = Application.Session.Folders
     k = 1
     f = 0
     
+    For z = 1 To oFolders.Count
+        Set oFolders2 = oFolders.Item(z).Folders
+        For i = 1 To oFolders2.Count
+            For j = 1 To oFolders2.Item(i).Items.Count
+                Set oItem2 = oFolders2.Item(i).Items
+                For g = 1 To oItem2.Count
+                    If oItem2.Item(g).Class = olMail Or _
+                    oItem2.Item(g).Class = olTask Or _
+                    oItem2.Item(g).Class = olMeeting Then
+
+                    k = k + 1
+                    End If
+                Next
+            Next
+        Next
+    Next
     
-    For Each oItems In oFolders
-    'If oItems.Name = Environ("UserName") & "@defence.gov.au" Then
-        Set oFolders2 = oItems.Folders
+    ReDim MailMetadata(0 To k, 0 To 21)
+    k = 1
+    Set oFolders = Application.Session.Folders
+    For z = 1 To oFolders.Count
+        Set oFolders2 = oFolders.Item(z).Folders
         
         For i = 1 To oFolders2.Count
-        'If oFolders2.Item(i).Name = "Inbox" Then
-            Set oItem2 = oFolders2.Item(i).Items
-            h = oFolders2.Item(i).Items.Count
-            f = h + f
-            
-            For j = 1 To oFolders2.Item(i).Items.Count
 
-            ReDim Preserve MailMetadata(0 To f, 0 To 21)
+            For j = 1 To oFolders2.Item(i).Items.Count
+                Set oItem2 = oFolders2.Item(i).Items
             
-            MailMetadata(k, 0) = oFolders2.Item(i).Items.Item(j).To
-            MailMetadata(k, 1) = oFolders2.Item(i).Items.Item(j).CC
-            MailMetadata(k, 2) = oFolders2.Item(i).Items.Item(j).ReplyRecipientNames
-            MailMetadata(k, 3) = oFolders2.Item(i).Items.Item(j).SenderEmailAddress
-            MailMetadata(k, 4) = oFolders2.Item(i).Items.Item(j).SenderName
-            MailMetadata(k, 5) = oFolders2.Item(i).Items.Item(j).SentOnBehalfOfName
-            MailMetadata(k, 6) = oFolders2.Item(i).Items.Item(j).SenderEmailType
-            MailMetadata(k, 7) = oFolders2.Item(i).Items.Item(j).Sent
-            MailMetadata(k, 8) = oFolders2.Item(i).Items.Item(j).Size
-            MailMetadata(k, 9) = oFolders2.Item(i).Items.Item(j).UnRead
-            MailMetadata(k, 10) = oFolders2.Item(i).Items.Item(j).CreationTime
-            MailMetadata(k, 11) = oFolders2.Item(i).Items.Item(j).LastModificationTime
-            MailMetadata(i, 12) = oFolders2.Item(i).Items.Item(j).SentOn
-            MailMetadata(k, 13) = oFolders2.Item(i).Items.Item(j).ReceivedTime
-            MailMetadata(k, 14) = oFolders2.Item(i).Items.Item(j).Importance
-            MailMetadata(k, 15) = oFolders2.Item(i).Items.Item(j).ReceivedByName
-            MailMetadata(k, 16) = oFolders2.Item(i).Items.Item(j).ReceivedOnBehalfOfName
-            MailMetadata(k, 17) = oFolders2.Item(i).Items.Item(j).Subject
-            MailMetadata(k, 18) = oFolders2.Item(i).Items.Item(j).Body
-            MailMetadata(k, 19) = oFolders2.Item(i).Items.Item(j).MessageClass
-            MailMetadata(k, 20) = oItems.Name
-            MailMetadata(k, 21) = oFolders2.Item(i).Name
-            
-            k = k + 1
+                For g = 1 To oItem2.Count
+                
+                On Error Resume Next
+                    MailMetadata(k, 0) = oItem2.Item(g).To
+                    MailMetadata(k, 1) = oItem2.Item(g).CC
+                    MailMetadata(k, 2) = oItem2.Item(g).ReplyRecipientNames
+                    MailMetadata(k, 3) = oItem2.Item(g).SenderEmailAddress
+                    MailMetadata(k, 4) = oItem2.Item(g).SenderName
+                    MailMetadata(k, 5) = oItem2.Item(g).SentOnBehalfOfName
+                    MailMetadata(k, 6) = oItem2.Item(g).SenderEmailType
+                    MailMetadata(k, 7) = oItem2.Item(g).Sent
+                    MailMetadata(k, 8) = oItem2.Item(g).Size
+                    MailMetadata(k, 9) = oItem2.Item(g).UnRead
+                    MailMetadata(k, 10) = oItem2.Item(g).CreationTime
+                    MailMetadata(k, 11) = oItem2.Item(g).LastModificationTime
+                    MailMetadata(i, 12) = oItem2.Item(g).SentOn
+                    MailMetadata(k, 13) = oItem2.Item(g).ReceivedTime
+                    MailMetadata(k, 14) = oItem2.Item(g).Importance
+                    MailMetadata(k, 15) = oItem2.Item(g).ReceivedByName
+                    MailMetadata(k, 16) = oItem2.Item(g).ReceivedOnBehalfOfName
+                    MailMetadata(k, 17) = oItem2.Item(g).Subject
+                    MailMetadata(k, 18) = oItem2.Item(g).Body
+                    MailMetadata(k, 19) = oItem2.Item(g).MessageClass
+                    MailMetadata(k, 20) = oFolders2.Item(z).Items.Item(i).Name
+                    MailMetadata(k, 21) = oItem2.Item(z).Name
+                
+                    k = k + 1
+                Next
             Next
         'End If
         Next
@@ -127,4 +144,8 @@ Sub AllItemsToCSV()
     Set xlWB = Nothing
     Set xlApp = Nothing
     
+    
 End Sub
+
+
+
